@@ -39,6 +39,33 @@ std::complex<float> FirFilter::process_sample(std::complex<float> sample) {
   return acc;
 }
 
+std::vector<float> design_bandpass_fir(int num_taps, float sample_rate,
+                                       float f_low, float f_high) {
+  std::vector<float> coeffs(num_taps);
+
+  float nyquist = sample_rate / 2.0f;
+  float omega_low = M_PI * (f_low / nyquist);
+  float omega_high = M_PI * (f_high / nyquist);
+
+  int center = (num_taps - 1) / 2;
+
+  for (int i = 0; i < num_taps; i++) {
+    int n = i - center;
+
+    if (n == 0) {
+      coeffs[i] = (omega_high - omega_low) / M_PI;
+    } else {
+      coeffs[i] =
+          (std::sin(omega_high * n) - std::sin(omega_low * n)) / (M_PI * n);
+    }
+
+    float window = 0.54f + 0.46f * std::cos((2.0f * M_PI * n) / (num_taps - 1));
+    coeffs[i] *= window;
+  }
+
+  return coeffs;
+}
+
 std::vector<std::complex<float>> downsample_signal(
     const std::vector<std::complex<float>>& input_signal, const int factor) {
   std::vector<std::complex<float>> result;
@@ -121,11 +148,11 @@ std::vector<float> calculate_am_envelope(
   return result;
 }
 
-// MAIN
-
+// ----MAIN----
 int main(void) {
   SndfileHandle file("17-35-54_131725000Hz.wav");
 
+  // считаем количество семплов
   int channels = file.channels();
   sf_count_t frames = file.frames();
   sf_count_t total_samples = frames * channels;
@@ -133,25 +160,59 @@ int main(void) {
   std::cout << "Всего значений в DATA : " << total_samples << " чисел"
             << std::endl;
 
+  // открываем файл с записью IQ в vector
   std::vector<std::complex<float>> temp =
       get_data_from_file("17-35-54_131725000Hz.wav", 2000);
   // std::vector<float> temp2 = calculate_am_envelope(temp);
   std::cout << "Успешно создано комплексных IQ-семплов: " << temp.size()
             << std::endl;
 
+  // открываем файл с коэффициентами фильтра НЧ
   std::vector<float> my_coeffs = load_coeffs_from_file("filter.txt");
+
   FirFilter filter(my_coeffs);
   std::vector<std::complex<float>> temp2;
   temp2.reserve(1000);
 
+  // фильтрация
   for (size_t i = 0; i < 1000; i++) {
     std::complex<float> result = filter.process_sample(temp[i]);
     temp2.push_back(result);
   }
+
+  // Делаем прореживание сигнала в 32 раза
   std::vector<std::complex<float>> temp3;
   temp3 = downsample_signal(temp2, 32);
-  for (size_t i = 0; i < 100; i++) {
-    std::cout << i << " " << temp3[i] << std::endl;
+
+  // создаем коэффикциенты для полосового фильтра (bandpass)
+  std::vector<float> coeffs_1200 =
+      design_bandpass_fir(101, 32000.0f, 1000.0f, 1400.0f);
+
+  // создаем НОВЫЙ, отдельный фильтр конкретно для аудио-тона 1200 Гц.
+  //  назовем его filter_1200.
+  FirFilter filter_1200(coeffs_1200);
+
+  // создаем вектор, куда запишется результат аудио-фильтрации
+  std::vector<std::complex<float>> temp_filtered_1200;
+  temp_filtered_1200.reserve(temp3.size());
+
+  // пропускаем наш легкий прореженный сигнал (temp3) через новый фильтр
+  for (size_t i = 0; i < temp3.size(); i++) {
+    std::complex<float> res = filter_1200.process_sample(temp3[i]);
+    temp_filtered_1200.push_back(res);
+  }
+
+  std::vector<float> coeffs_2400 =
+      design_bandpass_fir(101, 32000.0f, 2200.0f, 2600.0f);
+
+  FirFilter filter_2400(coeffs_2400);
+
+  std::vector<std::complex<float>> temp_filtered_2400;
+  temp_filtered_2400.reserve(temp3.size());
+
+  for (size_t i = 0; i < temp3.size(); i++) {
+    std::complex<float> res = filter_2400.process_sample(temp3[i]);
+    temp_filtered_2400.push_back(res);
   }
 
   return 0;

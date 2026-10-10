@@ -1,3 +1,4 @@
 venv/*
 .vscode/*
 gemini_tasks/*
+SDR_prog
