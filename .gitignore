@@ -1,0 +1,3 @@
+venv/*
+.vscode/*
+gemini_tasks/*
