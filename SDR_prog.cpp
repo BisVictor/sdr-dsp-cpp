@@ -46,9 +46,10 @@ class AcarsParser {
   uint8_t bit_counter_ = 0;
   uint8_t current_byte_ = 0;
   bool is_capturing_ = false;
-  uint8_t last_raw_bit_ = 1;  // Начинаем с 1, так как в тишине летят единицы
+  bool invert_payload_ = false;  // Флаг автоматического переворота битов
+  uint8_t last_raw_bit_ = 1;
   uint8_t last_stable_bit_ = 1;
-  const int mid_sample_tick_ = 6;  // Центр бита при частоте 32 кГц (13.33 / 2)
+  const int mid_sample_tick_ = 6;  // Проверенный центр бита
 
  public:
   AcarsParser() {}
@@ -57,69 +58,71 @@ class AcarsParser {
     for (size_t i = 0; i < raw_bits.size(); i++) {
       sample_counter_++;
 
-      // 1. Синхронизация по фронту (поиск смены 0->1 или 1->0)
+      // Синхронизация по фронту
       if (raw_bits[i] != last_raw_bit_) {
-        sample_counter_ = 0;  // Сбрасываем фазу на границе бита
+        sample_counter_ = 0;
         last_raw_bit_ = raw_bits[i];
       }
 
-      // 2. Стробирование (Делаем замер строго в центре бита)
+      // Стробирование строго в центре бита
       if (sample_counter_ == mid_sample_tick_) {
-        // 3. Декодер NRZI
-        uint8_t nrzi_bit = 0;
-        if (raw_bits[i] == last_stable_bit_) {
-          nrzi_bit = 1;  // Уровень не изменился -> логическая 1
-        } else {
-          nrzi_bit = 0;  // Уровень изменился -> логический 0
-        }
+        // Декодер NRZI
+        uint8_t nrzi_bit = (raw_bits[i] == last_stable_bit_) ? 1 : 0;
         last_stable_bit_ = raw_bits[i];
 
-        // 4. Коррекция аппаратной инверсии SDR#
+        // Коррекция базовой инверсии
         nrzi_bit = 1 - nrzi_bit;
 
-        // 5. Задвигаем бит в 24-битный сдвиговый регистр преамбулы
+        // Задвигаем бит в 24-битный регистр преамбулы
         shift_reg_ = ((shift_reg_ << 1) & 0xFFFFFF) + nrzi_bit;
 
-        // 6. Ищем маркер синхронизации пакета (два байта SYN подряд = 2694)
+        // Вырезаем 16 бит для проверки преамбулы
         uint32_t check_sync = shift_reg_ & 0xFFFF;
+
+        // Проверяем ПРЯМУЮ преамбулу
         if (check_sync == 2694) {
           is_capturing_ = true;
+          invert_payload_ = false;
           bit_counter_ = 0;
           current_byte_ = 0;
-          continue;  // Пропускаем сам префикс синхронизации
+          std::cout << "\n[ACARS Packet Detected] -> ";
+          continue;
+        }
+        // Проверяем ИНВЕРСНУЮ преамбулу (Автоподстройка под SDR)
+        else if (check_sync == 62837) {
+          is_capturing_ = true;
+          invert_payload_ = true;  // Будем переворачивать биты текста
+          bit_counter_ = 0;
+          current_byte_ = 0;
+          std::cout << "\n[ACARS Inverted Packet Detected] -> ";
+          continue;
         }
 
-        // 7. Сборка байта из битов (Младшим битом вперед - LSB)
+        // Сборка байта из битов
         if (is_capturing_) {
-          current_byte_ |= (nrzi_bit << bit_counter_);
+          // Если преамбула зашла инверсной, переворачиваем бит на лету
+          uint8_t final_bit = invert_payload_ ? (1 - nrzi_bit) : nrzi_bit;
+
+          current_byte_ |= (final_bit << bit_counter_);
           bit_counter_++;
 
-          // Собрали полный символ (8 бит)!
           if (bit_counter_ == 8) {
-            // Отрезаем верхний бит чётности ACARS, получая чистый 7-битный
-            // ASCII
             uint8_t clean_ascii = current_byte_ & 0x7F;
 
-            // Если символ управляющий конца текста (ETX = 0x03), закрываем
-            // пакет
-            if (clean_ascii == 3) {
+            if (clean_ascii == 3) {  // Конец пакета (ETX)
               is_capturing_ = false;
-              std::cout << std::endl << "[End of ACARS Packet]" << std::endl;
-            }
-            // Если символ читаемый — выводим на экран!
-            else if (clean_ascii >= 32 && clean_ascii <= 126) {
+              std::cout << " [End of Packet]" << std::endl;
+            } else if (clean_ascii >= 32 && clean_ascii <= 126) {
               std::cout << static_cast<char>(clean_ascii);
-              std::cout.flush();  // Принудительно выталкиваем букву на экран
+              std::cout.flush();
             }
 
-            // Сброс накопителей для следующего байта
             bit_counter_ = 0;
             current_byte_ = 0;
           }
         }
       }
 
-      // Защита от долгой тишины
       if (sample_counter_ >= 40) {
         sample_counter_ = 0;
       }
@@ -132,7 +135,7 @@ std::vector<uint8_t> extract_raw_bits(
     const std::vector<std::complex<float>>& filtered2) {
   std::vector<uint8_t> result;
   result.reserve(size);
-  const float squelch_threshold = 0.0001f;
+  const float squelch_threshold = 1e-11f;
 
   for (size_t i = 0; i < size; i++) {
     float temp1 = std::norm(filtered1[i]);
@@ -262,7 +265,7 @@ std::vector<float> calculate_am_envelope(
 
 // ----MAIN----
 int main(void) {
-  SndfileHandle file("17-35-54_131725000Hz.wav");
+  SndfileHandle file("IQ-files/17-35-54_131725000Hz.wav");
 
   // считаем количество семплов
   int channels = file.channels();
@@ -274,7 +277,7 @@ int main(void) {
 
   // открываем файл с записью IQ в vector
   std::vector<std::complex<float>> temp =
-      get_data_from_file("17-35-54_131725000Hz.wav", total_samples);
+      get_data_from_file("IQ-files/17-35-54_131725000Hz.wav", total_samples);
   // std::vector<float> temp2 = calculate_am_envelope(temp);
   std::cout << "Успешно создано комплексных IQ-семплов: " << temp.size()
             << std::endl;
@@ -332,10 +335,28 @@ int main(void) {
   raw_bits =
       extract_raw_bits(temp3.size(), temp_filtered_1200, temp_filtered_2400);
 
-  for (size_t i = 0; i < 1000; i++) {
-    std::cout << static_cast<int>(raw_bits[i]);
+  std::ofstream out_file("out.txt");
+
+  // Обязательно проверяем, удалось ли создать/открыть файл
+  if (!out_file.is_open()) {
+    std::cout << "Ошибка: Не удалось открыть файл out.txt для записи!"
+              << std::endl;
+    return 1;
   }
-  std::cout << std::endl;
+
+  // 2. Записываем биты в файл в цикле
+  // Обратите внимание: мы используем размер raw_bits, чтобы не выйти за границы
+  // памяти
+  for (size_t i = 0; i < raw_bits.size(); i++) {
+    // Вместо std::cout пишем имя нашего файлового потока out_file
+    out_file << static_cast<int>(raw_bits[i]);
+  }
+
+  // Добавляем перенос строки в самый конец файла
+  out_file << std::endl;
+
+  // 3. Закрываем файл
+  out_file.close();
 
   return 0;
 }
