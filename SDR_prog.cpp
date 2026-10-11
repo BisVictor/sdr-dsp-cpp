@@ -58,7 +58,7 @@ std::vector<float> design_bandpass_fir(int num_taps, float sample_rate,
       coeffs[i] =
           (std::sin(omega_high * n) - std::sin(omega_low * n)) / (M_PI * n);
     }
-
+    // наложение оконной функции Хемминга
     float window = 0.54f + 0.46f * std::cos((2.0f * M_PI * n) / (num_taps - 1));
     coeffs[i] *= window;
   }
