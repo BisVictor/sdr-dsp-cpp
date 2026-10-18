@@ -335,28 +335,8 @@ int main(void) {
   raw_bits =
       extract_raw_bits(temp3.size(), temp_filtered_1200, temp_filtered_2400);
 
-  std::ofstream out_file("out.txt");
-
-  // Обязательно проверяем, удалось ли создать/открыть файл
-  if (!out_file.is_open()) {
-    std::cout << "Ошибка: Не удалось открыть файл out.txt для записи!"
-              << std::endl;
-    return 1;
-  }
-
-  // 2. Записываем биты в файл в цикле
-  // Обратите внимание: мы используем размер raw_bits, чтобы не выйти за границы
-  // памяти
-  for (size_t i = 0; i < raw_bits.size(); i++) {
-    // Вместо std::cout пишем имя нашего файлового потока out_file
-    out_file << static_cast<int>(raw_bits[i]);
-  }
-
-  // Добавляем перенос строки в самый конец файла
-  out_file << std::endl;
-
-  // 3. Закрываем файл
-  out_file.close();
+  AcarsParser parser;
+  parser.parse_bitstream(raw_bits);
 
   return 0;
 }
