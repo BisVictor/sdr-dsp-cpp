@@ -1,28 +1,4 @@
-#include <algorithm>
-#include <cmath>
-#include <complex>
-#include <fstream>
-#include <iostream>
-#include <sndfile.hh>
-#include <string>
-#include <vector>
-
-class FirFilter {
- private:
-  std::vector<float> coeffs_;
-  std::vector<std::complex<float>> history_;
-
- public:
-  FirFilter(const std::vector<float>& coefficients);
-  ~FirFilter();
-  std::complex<float> process_sample(std::complex<float> sample);
-};
-
-FirFilter::FirFilter(const std::vector<float>& coefficients)
-    : coeffs_(coefficients),
-      history_(coefficients.size(), std::complex<float>(0.0f, 0.0f)) {}
-
-FirFilter::~FirFilter() {}
+#include "SDR_prog.h"
 
 std::complex<float> FirFilter::process_sample(std::complex<float> sample) {
   std::complex<float> acc = 0.0f;
