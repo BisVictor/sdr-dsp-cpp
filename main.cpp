@@ -42,7 +42,7 @@ int main(void) {
 
   std::cout << "После прореживания: " << temp3.size() << std::endl;
 
-  std::vector<float> temp_env = calculate_am_envelope(temp2);
+  std::vector<float> temp_env = calculate_am_envelope(temp3);
   saveSignal_float(temp_env, "test_env.csv");
 
   // создаем коэффикциенты для полосового фильтра (bandpass)

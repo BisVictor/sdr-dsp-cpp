@@ -2,3 +2,6 @@ venv/*
 .vscode/*
 gemini_tasks/*
 SDR_prog
+run_tests
+test_env.csv
+test_vector.csv

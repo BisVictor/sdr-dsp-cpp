@@ -3,8 +3,7 @@ import matplotlib.pyplot as plt
 
 signal = np.loadtxt("test_env.csv")
 
-# Берём не более 10 000 значений
-#signal = signal[1000:700000]
+signal = signal[251_000:258_000]
 
 sample_rate = 48000
 time = np.arange(len(signal)) / sample_rate
