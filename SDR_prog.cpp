@@ -1,5 +1,11 @@
 #include "SDR_prog.h"
 
+FirFilter::FirFilter(const std::vector<float>& coefficients)
+    : coeffs_(coefficients),
+      history_(coefficients.size(), std::complex<float>(0.0f, 0.0f)) {}
+
+FirFilter::~FirFilter() {}
+
 std::complex<float> FirFilter::process_sample(std::complex<float> sample) {
   std::complex<float> acc = 0.0f;
   if (history_.empty()) {
@@ -15,96 +21,80 @@ std::complex<float> FirFilter::process_sample(std::complex<float> sample) {
   return acc;
 }
 
-class AcarsParser {
- private:
-  size_t sample_counter_ = 0;
-  uint32_t shift_reg_ = 0;
-  uint8_t bit_counter_ = 0;
-  uint8_t current_byte_ = 0;
-  bool is_capturing_ = false;
-  bool invert_payload_ = false;  // Флаг автоматического переворота битов
-  uint8_t last_raw_bit_ = 1;
-  uint8_t last_stable_bit_ = 1;
-  const int mid_sample_tick_ = 6;  // Проверенный центр бита
+void AcarsParser::parse_bitstream(const std::vector<uint8_t>& raw_bits) {
+  for (size_t i = 0; i < raw_bits.size(); i++) {
+    sample_counter_++;
 
- public:
-  AcarsParser() {}
+    // Синхронизация по фронту
+    if (raw_bits[i] != last_raw_bit_) {
+      sample_counter_ = 0;
+      last_raw_bit_ = raw_bits[i];
+    }
 
-  void parse_bitstream(const std::vector<uint8_t>& raw_bits) {
-    for (size_t i = 0; i < raw_bits.size(); i++) {
-      sample_counter_++;
+    // Стробирование строго в центре бита
+    if (sample_counter_ == mid_sample_tick_) {
+      // Декодер NRZI
+      uint8_t nrzi_bit = (raw_bits[i] == last_stable_bit_) ? 1 : 0;
+      last_stable_bit_ = raw_bits[i];
 
-      // Синхронизация по фронту
-      if (raw_bits[i] != last_raw_bit_) {
-        sample_counter_ = 0;
-        last_raw_bit_ = raw_bits[i];
+      // Коррекция базовой инверсии
+      nrzi_bit = 1 - nrzi_bit;
+
+      // Задвигаем бит в 24-битный регистр преамбулы
+      shift_reg_ = ((shift_reg_ << 1) & 0xFFFFFF) + nrzi_bit;
+
+      // Вырезаем 16 бит для проверки преамбулы
+      uint32_t check_sync = shift_reg_ & 0xFFFF;
+
+      // Проверяем ПРЯМУЮ преамбулу
+      if (check_sync == 2694) {
+        is_capturing_ = true;
+        invert_payload_ = false;
+        bit_counter_ = 0;
+        current_byte_ = 0;
+        std::cout << "\n[ACARS Packet Detected] -> ";
+        continue;
+      }
+      // Проверяем ИНВЕРСНУЮ преамбулу (Автоподстройка под SDR)
+      else if (check_sync == 62837) {
+        is_capturing_ = true;
+        invert_payload_ = true;  // Будем переворачивать биты текста
+        bit_counter_ = 0;
+        current_byte_ = 0;
+        std::cout << "\n[ACARS Inverted Packet Detected] -> ";
+        continue;
       }
 
-      // Стробирование строго в центре бита
-      if (sample_counter_ == mid_sample_tick_) {
-        // Декодер NRZI
-        uint8_t nrzi_bit = (raw_bits[i] == last_stable_bit_) ? 1 : 0;
-        last_stable_bit_ = raw_bits[i];
+      // Сборка байта из битов
+      if (is_capturing_) {
+        // Если преамбула зашла инверсной, переворачиваем бит на лету
+        uint8_t final_bit = invert_payload_ ? (1 - nrzi_bit) : nrzi_bit;
 
-        // Коррекция базовой инверсии
-        nrzi_bit = 1 - nrzi_bit;
+        current_byte_ |= (final_bit << bit_counter_);
+        bit_counter_++;
 
-        // Задвигаем бит в 24-битный регистр преамбулы
-        shift_reg_ = ((shift_reg_ << 1) & 0xFFFFFF) + nrzi_bit;
+        if (bit_counter_ == 8) {
+          uint8_t clean_ascii = current_byte_ & 0x7F;
 
-        // Вырезаем 16 бит для проверки преамбулы
-        uint32_t check_sync = shift_reg_ & 0xFFFF;
-
-        // Проверяем ПРЯМУЮ преамбулу
-        if (check_sync == 2694) {
-          is_capturing_ = true;
-          invert_payload_ = false;
-          bit_counter_ = 0;
-          current_byte_ = 0;
-          std::cout << "\n[ACARS Packet Detected] -> ";
-          continue;
-        }
-        // Проверяем ИНВЕРСНУЮ преамбулу (Автоподстройка под SDR)
-        else if (check_sync == 62837) {
-          is_capturing_ = true;
-          invert_payload_ = true;  // Будем переворачивать биты текста
-          bit_counter_ = 0;
-          current_byte_ = 0;
-          std::cout << "\n[ACARS Inverted Packet Detected] -> ";
-          continue;
-        }
-
-        // Сборка байта из битов
-        if (is_capturing_) {
-          // Если преамбула зашла инверсной, переворачиваем бит на лету
-          uint8_t final_bit = invert_payload_ ? (1 - nrzi_bit) : nrzi_bit;
-
-          current_byte_ |= (final_bit << bit_counter_);
-          bit_counter_++;
-
-          if (bit_counter_ == 8) {
-            uint8_t clean_ascii = current_byte_ & 0x7F;
-
-            if (clean_ascii == 3) {  // Конец пакета (ETX)
-              is_capturing_ = false;
-              std::cout << " [End of Packet]" << std::endl;
-            } else if (clean_ascii >= 32 && clean_ascii <= 126) {
-              std::cout << static_cast<char>(clean_ascii);
-              std::cout.flush();
-            }
-
-            bit_counter_ = 0;
-            current_byte_ = 0;
+          if (clean_ascii == 3) {  // Конец пакета (ETX)
+            is_capturing_ = false;
+            std::cout << " [End of Packet]" << std::endl;
+          } else if (clean_ascii >= 32 && clean_ascii <= 126) {
+            std::cout << static_cast<char>(clean_ascii);
+            std::cout.flush();
           }
-        }
-      }
 
-      if (sample_counter_ >= 40) {
-        sample_counter_ = 0;
+          bit_counter_ = 0;
+          current_byte_ = 0;
+        }
       }
     }
+
+    if (sample_counter_ >= 40) {
+      sample_counter_ = 0;
+    }
   }
-};
+}
 
 std::vector<uint8_t> extract_raw_bits(
     size_t size, const std::vector<std::complex<float>>& filtered1,
@@ -193,7 +183,7 @@ std::vector<float> load_coeffs_from_file(const std::string& filename) {
   return result;
 }
 
-std::vector<std::complex<float>> get_data_from_file(const std::string filename,
+std::vector<std::complex<float>> get_data_from_file(const std::string& filename,
                                                     size_t num_data) {
   std::vector<std::complex<float>> result;
 
@@ -237,82 +227,4 @@ std::vector<float> calculate_am_envelope(
   }
 
   return result;
-}
-
-// ----MAIN----
-int main(void) {
-  SndfileHandle file("IQ-files/17-35-54_131725000Hz.wav");
-
-  // считаем количество семплов
-  int channels = file.channels();
-  sf_count_t frames = file.frames();
-  sf_count_t total_samples = frames * channels;
-
-  std::cout << "Всего значений в DATA : " << total_samples << " чисел"
-            << std::endl;
-
-  // открываем файл с записью IQ в vector
-  std::vector<std::complex<float>> temp =
-      get_data_from_file("IQ-files/17-35-54_131725000Hz.wav", total_samples);
-  // std::vector<float> temp2 = calculate_am_envelope(temp);
-  std::cout << "Успешно создано комплексных IQ-семплов: " << temp.size()
-            << std::endl;
-
-  // открываем файл с коэффициентами фильтра НЧ
-  std::vector<float> my_coeffs = load_coeffs_from_file("filter.txt");
-
-  FirFilter filter(my_coeffs);
-  std::vector<std::complex<float>> temp2;
-  temp2.reserve(temp.size());
-
-  // фильтрация
-  for (size_t i = 0; i < temp.size(); i++) {
-    std::complex<float> result = filter.process_sample(temp[i]);
-    temp2.push_back(result);
-  }
-
-  // Делаем прореживание сигнала в 32 раза
-  std::vector<std::complex<float>> temp3;
-  temp3 = downsample_signal(temp2, 32);
-
-  // создаем коэффикциенты для полосового фильтра (bandpass)
-  std::vector<float> coeffs_1200 =
-      design_bandpass_fir(101, 32000.0f, 1000.0f, 1400.0f);
-
-  // создаем НОВЫЙ, отдельный фильтр конкретно для аудио-тона 1200 Гц.
-  //  назовем его filter_1200.
-  FirFilter filter_1200(coeffs_1200);
-
-  // создаем вектор, куда запишется результат аудио-фильтрации
-  std::vector<std::complex<float>> temp_filtered_1200;
-  temp_filtered_1200.reserve(temp3.size());
-
-  // пропускаем наш легкий прореженный сигнал (temp3) через новый фильтр
-  for (size_t i = 0; i < temp3.size(); i++) {
-    std::complex<float> res = filter_1200.process_sample(temp3[i]);
-    temp_filtered_1200.push_back(res);
-  }
-
-  std::vector<float> coeffs_2400 =
-      design_bandpass_fir(101, 32000.0f, 2200.0f, 2600.0f);
-
-  FirFilter filter_2400(coeffs_2400);
-
-  std::vector<std::complex<float>> temp_filtered_2400;
-  temp_filtered_2400.reserve(temp3.size());
-
-  for (size_t i = 0; i < temp3.size(); i++) {
-    std::complex<float> res = filter_2400.process_sample(temp3[i]);
-    temp_filtered_2400.push_back(res);
-  }
-
-  std::vector<uint8_t> raw_bits;
-  raw_bits.reserve(temp3.size());
-  raw_bits =
-      extract_raw_bits(temp3.size(), temp_filtered_1200, temp_filtered_2400);
-
-  AcarsParser parser;
-  parser.parse_bitstream(raw_bits);
-
-  return 0;
 }

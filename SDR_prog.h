@@ -7,6 +7,7 @@
 #include <string>
 #include <vector>
 
+// ==================== КИХ-Фильтр ====================
 class FirFilter {
  private:
   std::vector<float> coeffs_;
@@ -18,12 +19,7 @@ class FirFilter {
   std::complex<float> process_sample(std::complex<float> sample);
 };
 
-FirFilter::FirFilter(const std::vector<float>& coefficients)
-    : coeffs_(coefficients),
-      history_(coefficients.size(), std::complex<float>(0.0f, 0.0f)) {}
-
-FirFilter::~FirFilter() {}
-
+// ==================== Парсер ACARS ====================
 class AcarsParser {
  private:
   size_t sample_counter_ = 0;
@@ -37,9 +33,11 @@ class AcarsParser {
   const int mid_sample_tick_ = 6;  // Проверенный центр бита
 
  public:
-  AcarsParser();
+  AcarsParser() {};
   void parse_bitstream(const std::vector<uint8_t>& raw_bits);
 };
+
+// ==================== Утилиты ЦОС (Свободные функции) ====================
 
 std::vector<uint8_t> extract_raw_bits(
     size_t size, const std::vector<std::complex<float>>& filtered1,
@@ -50,3 +48,11 @@ std::vector<float> design_bandpass_fir(int num_taps, float sample_rate,
 
 std::vector<std::complex<float>> downsample_signal(
     const std::vector<std::complex<float>>& input_signal, const int factor);
+
+std::vector<float> load_coeffs_from_file(const std::string& filename);
+
+std::vector<std::complex<float>> get_data_from_file(const std::string& filename,
+                                                    size_t num_data);
+
+std::vector<float> calculate_am_envelope(
+    const std::vector<std::complex<float>>& in_data);

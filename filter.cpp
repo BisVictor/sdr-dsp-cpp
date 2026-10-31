@@ -1,6 +1,4 @@
-#include <cmath>
-#include <iostream>
-#include <vector>
+#include "filter.h"
 
 // Функция генерации коэффициентов ФНЧ (Аналог fir1 из MATLAB)
 std::vector<float> design_lowpass_fir(int num_taps, float sample_rate,
@@ -49,7 +47,7 @@ std::vector<float> design_lowpass_fir(int num_taps, float sample_rate,
   return coeffs;
 }
 
-int main() {
+/* int main() {
   // Рассчитываем те же 401 коэффициент для ACARS прямо в памяти!
   std::vector<float> my_coeffs = design_lowpass_fir(401, 1024000.0f, 7500.0f);
 
@@ -60,4 +58,4 @@ int main() {
   }
 
   return 0;
-}
+} */
