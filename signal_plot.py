@@ -1,25 +1,19 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-signal = np.loadtxt("test_vector.csv")
+signal = np.loadtxt("tests/signal_data/test3_after.csv")
+# signal = signal[251_000:258_000]
 
-#signal = signal[251_000:258_000]
+sample_rate = 1024000
+num_points = len(signal)
+duration = num_points / sample_rate
+time = np.arange(num_points) / sample_rate
 
-sample_rate = 48000
-time = np.arange(len(signal)) / sample_rate
+# Создаем фигуру и объект осей ax (нужен для точного позиционирования рамки)
+fig, ax = plt.subplots(figsize=(16, 5))
 
-plt.figure(figsize=(16, 5))
-
-plt.plot(time, signal, linewidth=0.7)
-
-plt.title("ACARS Modulated Signal")
-plt.xlabel("Time (seconds)")
-plt.ylabel("Amplitude")
-
-plt.ylim(-1.1, 1.1)
-plt.grid(True)
-
-plt.plot(
+# Строим график (дублировать plt.plot не нужно, можно сразу задать маркеры)
+ax.plot(
     time,
     signal,
     linewidth=0.7,
@@ -29,4 +23,40 @@ plt.plot(
     markeredgecolor='blue'
 )
 
-plt.savefig("plot.png")
+ax.set_title("Test3_downsample_signal, bits={1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}+{1, 1, 1, 0, 0, 0, 1, 1, 1}")
+ax.set_xlabel("Time (seconds)")
+ax.set_ylabel("Amplitude")
+ax.set_ylim(-1.1, 1.1)
+ax.grid(True)
+
+# --- ФОРМИРУЕМ КВАДРАТ С ДАННЫМИ ---
+# Текст внутри блока (используем f-строку с форматированием чисел)
+info_text = (
+    f"Sample Rate: {sample_rate / 1e3:.1f} kHz\n"
+    f"Total Points: {num_points:,}\n"
+    f"Duration: {duration * 1000:.2f} ms\n"
+)
+
+# Настройки внешнего вида самой рамки
+box_properties = dict(
+    boxstyle='round,pad=0.5',  # скругленные углы и внутренний отступ
+    facecolor='white',         # цвет фона
+    edgecolor='gray',          # цвет рамки
+    alpha=0.85                 # прозрачность, чтобы сетка слегка просвечивала
+)
+
+# Добавляем текст на график
+# (0.98, 0.95) — это правый верхний угол в относительных координатах от 0 до 1
+ax.text(
+    0.02, 0.05,                # Координаты левого нижнего угла (с небольшим отступом от краев)
+    info_text, 
+    transform=ax.transAxes, 
+    fontsize=10,
+    fontfamily='monospace',    
+    verticalalignment='bottom',  # Выравнивание по нижней границе рамки
+    horizontalalignment='left',  # Выравнивание по левой границе рамки
+    bbox=box_properties
+)
+# -----------------------------------
+
+plt.savefig("tests/test_plots/plot_test3_after.png", bbox_inches='tight')
