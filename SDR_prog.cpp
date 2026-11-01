@@ -101,7 +101,7 @@ std::vector<uint8_t> extract_raw_bits(
     const std::vector<std::complex<float>>& filtered2) {
   std::vector<uint8_t> result;
   result.reserve(size);
-  const float squelch_threshold = 1e-11f;
+  const float squelch_threshold = 1e-7f;
 
   for (size_t i = 0; i < size; i++) {
     float temp1 = std::norm(filtered1[i]);
@@ -118,33 +118,6 @@ std::vector<uint8_t> extract_raw_bits(
   }
 
   return result;
-}
-
-std::vector<float> design_bandpass_fir(int num_taps, float sample_rate,
-                                       float f_low, float f_high) {
-  std::vector<float> coeffs(num_taps);
-
-  float nyquist = sample_rate / 2.0f;
-  float omega_low = M_PI * (f_low / nyquist);
-  float omega_high = M_PI * (f_high / nyquist);
-
-  int center = (num_taps - 1) / 2;
-
-  for (int i = 0; i < num_taps; i++) {
-    int n = i - center;
-
-    if (n == 0) {
-      coeffs[i] = (omega_high - omega_low) / M_PI;
-    } else {
-      coeffs[i] =
-          (std::sin(omega_high * n) - std::sin(omega_low * n)) / (M_PI * n);
-    }
-    // наложение оконной функции Хемминга
-    float window = 0.54f + 0.46f * std::cos((2.0f * M_PI * n) / (num_taps - 1));
-    coeffs[i] *= window;
-  }
-
-  return coeffs;
 }
 
 std::vector<std::complex<float>> downsample_signal(

@@ -36,3 +36,21 @@ TEST(Acars_Test, Test2_GenerateAcarsPacket) {
   std::vector<double> test_vector = generateAcarsPacket(bits, cfg);
   saveSignal(test_vector, "test_vector.csv");
 }
+
+TEST(Acars_Test, Test3_downsample_signal) {
+  AcarsConfig cfg;
+  cfg.sampleRate = 1024000;
+  std::vector<bool> bits = {1, 1, 1, 0, 0, 0, 1, 1, 1};
+  std::vector<double> test_vector = generateAcarsPacket(bits, cfg);
+
+  std::vector<std::complex<float>> iq_signal;
+  iq_signal.reserve(test_vector.size());
+  for (double sample : test_vector) {
+    iq_signal.emplace_back(static_cast<float>(sample), 0.0f);
+  }
+  std::vector<std::complex<float>> result = downsample_signal(iq_signal, 10);
+
+  ASSERT_EQ(result.size(), (iq_signal.size() / 10));
+}
+
+// std::vector<float> design_lowpass_fir

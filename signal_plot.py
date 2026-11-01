@@ -1,14 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-signal = np.loadtxt("test_env.csv")
+signal = np.loadtxt("test_vector.csv")
 
-signal = signal[251_000:258_000]
+#signal = signal[251_000:258_000]
 
 sample_rate = 48000
 time = np.arange(len(signal)) / sample_rate
 
-plt.figure(figsize=(32, 5))
+plt.figure(figsize=(16, 5))
 
 plt.plot(time, signal, linewidth=0.7)
 

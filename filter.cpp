@@ -47,15 +47,29 @@ std::vector<float> design_lowpass_fir(int num_taps, float sample_rate,
   return coeffs;
 }
 
-/* int main() {
-  // Рассчитываем те же 401 коэффициент для ACARS прямо в памяти!
-  std::vector<float> my_coeffs = design_lowpass_fir(401, 1024000.0f, 7500.0f);
+std::vector<float> design_bandpass_fir(int num_taps, float sample_rate,
+                                       float f_low, float f_high) {
+  std::vector<float> coeffs(num_taps);
 
-  std::cout << "Сгенерировано " << my_coeffs.size() << " коэффициентов в C++."
-            << std::endl;
-  for (size_t i = 0; i < my_coeffs.size(); i++) {
-    std::cout << my_coeffs[i] << std::endl;
+  float nyquist = sample_rate / 2.0f;
+  float omega_low = M_PI * (f_low / nyquist);
+  float omega_high = M_PI * (f_high / nyquist);
+
+  int center = (num_taps - 1) / 2;
+
+  for (int i = 0; i < num_taps; i++) {
+    int n = i - center;
+
+    if (n == 0) {
+      coeffs[i] = (omega_high - omega_low) / M_PI;
+    } else {
+      coeffs[i] =
+          (std::sin(omega_high * n) - std::sin(omega_low * n)) / (M_PI * n);
+    }
+    // наложение оконной функции Хемминга
+    float window = 0.54f + 0.46f * std::cos((2.0f * M_PI * n) / (num_taps - 1));
+    coeffs[i] *= window;
   }
 
-  return 0;
-} */
+  return coeffs;
+}

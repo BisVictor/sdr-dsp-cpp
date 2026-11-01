@@ -43,9 +43,6 @@ std::vector<uint8_t> extract_raw_bits(
     size_t size, const std::vector<std::complex<float>>& filtered1,
     const std::vector<std::complex<float>>& filtered2);
 
-std::vector<float> design_bandpass_fir(int num_taps, float sample_rate,
-                                       float f_low, float f_high);
-
 std::vector<std::complex<float>> downsample_signal(
     const std::vector<std::complex<float>>& input_signal, const int factor);
 
