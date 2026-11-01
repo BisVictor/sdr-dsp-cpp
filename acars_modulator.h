@@ -22,4 +22,12 @@ std::vector<double> generateAcarsPacket(const std::vector<bool>& bits,
                                         const AcarsConfig& cfg);
 
 void saveSignal(const std::vector<double>& signal, std::string filename);
-void saveSignal_float(const std::vector<float>& signal, std::string filename);
+
+template <typename T>
+void saveSignal(const std::vector<T>& signal, std::string filename) {
+  std::ofstream file(filename);
+
+  for (auto sample : signal) {
+    file << sample << '\n';
+  }
+}

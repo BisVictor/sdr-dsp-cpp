@@ -46,22 +46,6 @@ std::vector<double> generateAcarsPacket(const std::vector<bool>& bits,
   return packet;
 }
 
-void saveSignal(const std::vector<double>& signal, std::string filename) {
-  std::ofstream file(filename);
-
-  for (auto sample : signal) {
-    file << sample << '\n';
-  }
-}
-
-void saveSignal_float(const std::vector<float>& signal, std::string filename) {
-  std::ofstream file(filename);
-
-  for (auto sample : signal) {
-    file << sample << '\n';
-  }
-}
-
 /* int main(void) {
   double fase = 0.0;
   int bit1 = 1;

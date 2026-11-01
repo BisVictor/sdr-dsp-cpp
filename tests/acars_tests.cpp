@@ -34,7 +34,7 @@ TEST(Acars_Test, Test2_GenerateAcarsPacket) {
   AcarsConfig cfg;
   std::vector<bool> bits = {1, 1, 1, 0, 0, 0, 1, 1, 1};
   std::vector<double> test_vector = generateAcarsPacket(bits, cfg);
-  saveSignal(test_vector, "test_vector.csv");
+  saveSignal(test_vector, "tests/signal_data/test2.csv");
 }
 
 TEST(Acars_Test, Test3_downsample_signal) {
@@ -42,6 +42,7 @@ TEST(Acars_Test, Test3_downsample_signal) {
   cfg.sampleRate = 1024000;
   std::vector<bool> bits = {1, 1, 1, 0, 0, 0, 1, 1, 1};
   std::vector<double> test_vector = generateAcarsPacket(bits, cfg);
+  saveSignal(test_vector, "tests/signal_data/test3_before.csv");
 
   std::vector<std::complex<float>> iq_signal;
   iq_signal.reserve(test_vector.size());
@@ -49,8 +50,38 @@ TEST(Acars_Test, Test3_downsample_signal) {
     iq_signal.emplace_back(static_cast<float>(sample), 0.0f);
   }
   std::vector<std::complex<float>> result = downsample_signal(iq_signal, 10);
+  saveSignal(test_vector, "tests/signal_data/test3_before.csv");
 
   ASSERT_EQ(result.size(), (iq_signal.size() / 10));
 }
 
-// std::vector<float> design_lowpass_fir
+TEST(Acars_Test, Test4_design_lowpass_fir) {
+  AcarsConfig cfg;
+  std::vector<float> test_vector;
+  test_vector.reserve(101);
+  float sample_rate = static_cast<float>(cfg.sampleRate);
+  test_vector = design_lowpass_fir(101, sample_rate, 2400.0f);
+  saveSignal(test_vector, "tests/signal_data/test4.csv");
+  ASSERT_EQ(test_vector.size(), 101);
+  EXPECT_NEAR(std::accumulate(test_vector.begin(), test_vector.end(), 0.0f),
+              1.0f, 0.001f);
+}
+
+TEST(Acars_Test, Test5_lowpass_fir) {
+  AcarsConfig cfg;
+  std::vector<float> test_vector;
+  test_vector.reserve(101);
+  float sample_rate = static_cast<float>(cfg.sampleRate);
+  test_vector = design_lowpass_fir(101, sample_rate, 2400.0f);
+
+  std::vector<bool> bits = {1, 1, 1, 0, 0, 0, 1, 1, 1};
+  std::vector<double> modulation = generateAcarsPacket(bits, cfg);
+  std::vector<std::complex<float>> iq_signal;
+  iq_signal.reserve(modulation.size());
+  for (double sample : modulation) {
+    iq_signal.emplace_back(static_cast<float>(sample), 0.0f);
+  }
+
+  FirFilter filter(test_vector);
+  filter.process_sample()
+}

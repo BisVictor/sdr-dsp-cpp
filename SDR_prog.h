@@ -3,6 +3,7 @@
 #include <complex>
 #include <fstream>
 #include <iostream>
+#include <numeric>
 #include <sndfile.hh>
 #include <string>
 #include <vector>
