@@ -51,7 +51,7 @@ TEST(Acars_Test, Test3_downsample_signal) {
   }
   std::vector<std::complex<float>> result = downsample_signal(iq_signal, 5);
   saveSignal(result, "tests/signal_data/test3_after.csv");
-  std::cout << iq_signal.size() << result.size();
+  // std::cout << iq_signal.size() << result.size();
   ASSERT_EQ(result.size(), (iq_signal.size() / 5));
 }
 
@@ -92,4 +92,40 @@ TEST(Acars_Test, Test5_lowpass_fir) {
     vector_after_filtration.push_back(temp);
   }
   saveSignal(vector_after_filtration, "tests/signal_data/test5_after.csv");
+  ASSERT_EQ(iq_signal.size(), vector_after_filtration.size());
+}
+
+TEST(Acars_Test, Test6_design_bandpass_fir) {
+  AcarsConfig cfg;
+  std::vector<float> coeffs_1200 =
+      design_bandpass_fir(101, cfg.sampleRate, 1000.0f, 1400.0f);
+  saveSignal(coeffs_1200, "tests/signal_data/test6.csv");
+  ASSERT_EQ(coeffs_1200.size(), 101);
+}
+
+TEST(Acars_Test, Test7_bandpass_fir) {
+  AcarsConfig cfg;
+  cfg.sampleRate = 32000;
+  std::vector<float> coeffs_1200 =
+      design_bandpass_fir(7, cfg.sampleRate, 1000.0f, 1400.0f);
+
+  std::vector<bool> bits = {1, 1, 1, 0, 0, 0, 1, 1, 1};
+  std::vector<double> modulation = generateAcarsPacket(bits, cfg);
+  std::vector<std::complex<float>> iq_signal;
+  iq_signal.reserve(modulation.size());
+  for (double sample : modulation) {
+    iq_signal.emplace_back(static_cast<float>(sample), 0.0f);
+  }
+  saveSignal(iq_signal, "tests/signal_data/test7_before.csv");
+
+  std::vector<std::complex<float>> vector_after_filtration;
+  vector_after_filtration.reserve(iq_signal.size());
+  FirFilter filter(coeffs_1200);
+
+  for (auto sample : iq_signal) {
+    std::complex<float> temp = filter.process_sample(sample);
+    vector_after_filtration.push_back(temp);
+  }
+  saveSignal(vector_after_filtration, "tests/signal_data/test7_after.csv");
+  ASSERT_EQ(iq_signal.size(), vector_after_filtration.size());
 }

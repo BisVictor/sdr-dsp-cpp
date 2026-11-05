@@ -1,5 +1,6 @@
 #include "SDR_prog.h"
 #include "acars_modulator.h"
+#include "filter.h"
 
 // ---- MAIN ----
 int main(void) {
@@ -43,7 +44,7 @@ int main(void) {
   std::cout << "После прореживания: " << temp3.size() << std::endl;
 
   std::vector<float> temp_env = calculate_am_envelope(temp3);
-  saveSignal_float(temp_env, "test_env.csv");
+  saveSignal(temp_env, "test_env.csv");
 
   // создаем коэффикциенты для полосового фильтра (bandpass)
   std::vector<float> coeffs_1200 =

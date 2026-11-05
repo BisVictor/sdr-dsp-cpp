@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-signal = np.loadtxt("tests/signal_data/test3_after.csv")
+signal = np.loadtxt("tests/signal_data/test7_after.csv")
 # signal = signal[251_000:258_000]
 
-sample_rate = 1024000
+sample_rate = 16000
 num_points = len(signal)
 duration = num_points / sample_rate
 time = np.arange(num_points) / sample_rate
@@ -12,7 +12,7 @@ time = np.arange(num_points) / sample_rate
 # Создаем фигуру и объект осей ax (нужен для точного позиционирования рамки)
 fig, ax = plt.subplots(figsize=(16, 5))
 
-# Строим график (дублировать plt.plot не нужно, можно сразу задать маркеры)
+# Строим график 
 ax.plot(
     time,
     signal,
@@ -23,14 +23,14 @@ ax.plot(
     markeredgecolor='blue'
 )
 
-ax.set_title("Test3_downsample_signal, bits={1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0}+{1, 1, 1, 0, 0, 0, 1, 1, 1}")
-ax.set_xlabel("Time (seconds)")
+ax.set_title("Test6_design_bandpass_fir")
+#ax.set_xlabel("Time (seconds)")
 ax.set_ylabel("Amplitude")
 ax.set_ylim(-1.1, 1.1)
 ax.grid(True)
 
 # --- ФОРМИРУЕМ КВАДРАТ С ДАННЫМИ ---
-# Текст внутри блока (используем f-строку с форматированием чисел)
+# Текст внутри блока
 info_text = (
     f"Sample Rate: {sample_rate / 1e3:.1f} kHz\n"
     f"Total Points: {num_points:,}\n"
@@ -59,4 +59,4 @@ ax.text(
 )
 # -----------------------------------
 
-plt.savefig("tests/test_plots/plot_test3_after.png", bbox_inches='tight')
+plt.savefig("tests/test_plots/plot_test7_after", bbox_inches='tight')
