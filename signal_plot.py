@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-signal = np.loadtxt("tests/signal_data/test7_after.csv")
+signal = np.loadtxt("tests/signal_data/test8_after.csv")
 # signal = signal[251_000:258_000]
 
-sample_rate = 16000
+sample_rate = 32000
 num_points = len(signal)
 duration = num_points / sample_rate
 time = np.arange(num_points) / sample_rate
@@ -23,7 +23,7 @@ ax.plot(
     markeredgecolor='blue'
 )
 
-ax.set_title("Test6_design_bandpass_fir")
+ax.set_title("Test8_design_bandpass_fir")
 #ax.set_xlabel("Time (seconds)")
 ax.set_ylabel("Amplitude")
 ax.set_ylim(-1.1, 1.1)
@@ -59,4 +59,4 @@ ax.text(
 )
 # -----------------------------------
 
-plt.savefig("tests/test_plots/plot_test7_after", bbox_inches='tight')
+plt.savefig("tests/test_plots/plot_test8_after", bbox_inches='tight')
