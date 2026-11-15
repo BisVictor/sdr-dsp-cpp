@@ -1,3 +1,6 @@
+#ifndef ACARS_MODULATOR_H
+#define ACARS_MODULATOR_H
+
 #include <algorithm>
 #include <cmath>
 #include <fstream>
@@ -29,3 +32,5 @@ void saveSignal(const std::vector<T>& signal, std::string filename) {
     file << std::abs(sample) << '\n';
   }
 }
+
+#endif

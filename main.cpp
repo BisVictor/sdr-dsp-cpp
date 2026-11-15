@@ -12,6 +12,7 @@ int main(void) {
   sf_count_t total_samples = frames * channels;
 
   AcarsConfig cnfg;
+  cnfg.sampleRate = file.samplerate();
 
   std::cout << "Всего значений в DATA : " << total_samples << " чисел"
             << std::endl;

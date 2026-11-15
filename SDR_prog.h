@@ -1,3 +1,6 @@
+#ifndef SDR_PROG_H
+#define SDR_PROG_H
+
 #include <algorithm>
 #include <cmath>
 #include <complex>
@@ -54,3 +57,5 @@ std::vector<std::complex<float>> get_data_from_file(const std::string& filename,
 
 std::vector<float> calculate_am_envelope(
     const std::vector<std::complex<float>>& in_data);
+
+#endif

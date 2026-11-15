@@ -28,6 +28,15 @@ TEST(Acars_Test, Test1_GenerateBitLengthAndPhase) {
 
   // фаза изменилась и не осталась нулевой?
   EXPECT_NE(currentPhase, 0.0);
+
+  // Проверяем частоту тона
+  double phase_step = 2.0 * M_PI * cfg.freqMark / cfg.sampleRate;
+
+  for (size_t i = 1; i < signal.size(); ++i) {
+    double expected = std::sin(i * phase_step);
+
+    EXPECT_NEAR(signal[i], expected, 1e-6);
+  }
 }
 
 TEST(Acars_Test, Test2_GenerateAcarsPacket) {
@@ -35,6 +44,7 @@ TEST(Acars_Test, Test2_GenerateAcarsPacket) {
   std::vector<bool> bits = {1, 1, 1, 0, 0, 0, 1, 1, 1};
   std::vector<double> test_vector = generateAcarsPacket(bits, cfg);
   saveSignal(test_vector, "tests/signal_data/test2.csv");
+  ASSERT_GT(test_vector.size(), 200);
 }
 
 TEST(Acars_Test, Test3_downsample_signal) {
