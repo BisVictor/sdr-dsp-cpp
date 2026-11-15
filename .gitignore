@@ -5,5 +5,9 @@ SDR_prog
 run_tests
 test_env.csv
 test_vector.csv
-*.csv, *.png, IQ-files/, plot.png, out.txt
+*.csv
+*.png
+IQ-files/
+plot.png
+out.txt
 .env
