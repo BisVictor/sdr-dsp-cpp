@@ -49,7 +49,7 @@ int main(void) {
 
   // создаем коэффикциенты для полосового фильтра (bandpass)
   std::vector<float> coeffs_1200 =
-      design_bandpass_fir(101, 32000.0f, 1000.0f, 1400.0f);
+      design_bandpass_fir(101, cnfg.sampleRate / 32, 1000.0f, 1400.0f);
 
   // создаем НОВЫЙ, отдельный фильтр конкретно для аудио-тона 1200 Гц.
   //  назовем его filter_1200.
@@ -66,7 +66,7 @@ int main(void) {
   }
 
   std::vector<float> coeffs_2400 =
-      design_bandpass_fir(101, 32000.0f, 2200.0f, 2600.0f);
+      design_bandpass_fir(101, cnfg.sampleRate / 32, 2200.0f, 2600.0f);
 
   FirFilter filter_2400(coeffs_2400);
 
