@@ -2,9 +2,15 @@ import requests
 import hashlib
 from requests.auth import HTTPDigestAuth
 
+import os
+from dotenv import load_dotenv
+
+load_dotenv() 
+password = os.getenv("PASSWORD")
+
 KEENETIC_IP = "192.168.1.1"
 USERNAME = "admin"
-PASSWORD = "Bisvictor13"          
+PASSWORD = password        
 
 session = requests.Session()
 
