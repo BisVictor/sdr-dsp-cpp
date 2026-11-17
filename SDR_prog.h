@@ -20,7 +20,7 @@ class FirFilter {
  public:
   FirFilter(const std::vector<float>& coefficients);
   ~FirFilter();
-  std::complex<float> process_sample(std::complex<float> sample);
+  std::complex<float> process_sample(const std::complex<float> sample);
 };
 
 // ==================== Парсер ACARS ====================

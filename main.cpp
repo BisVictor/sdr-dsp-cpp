@@ -4,7 +4,9 @@
 
 // ---- MAIN ----
 int main(void) {
-  SndfileHandle file("IQ-files/17-35-54_131725000Hz.wav");
+  std::string filename = "IQ-files/17-35-54_131725000Hz.wav";
+
+  SndfileHandle file(filename);
 
   // считаем количество семплов
   int channels = file.channels();
@@ -19,7 +21,7 @@ int main(void) {
 
   // открываем файл с записью IQ в vector
   std::vector<std::complex<float>> temp =
-      get_data_from_file("IQ-files/17-35-54_131725000Hz.wav", total_samples);
+      get_data_from_file(filename, total_samples);
   // std::vector<float> temp_env = calculate_am_envelope(temp);
 
   // saveSignal_float(temp_env, "test_env.csv");
@@ -28,9 +30,18 @@ int main(void) {
 
   // открываем файл с коэффициентами фильтра НЧ
   std::vector<float> my_coeffs = load_coeffs_from_file("filter.txt");
+  /*   std::vector<std::complex<float>> slice(temp.begin() + 210000 * 32,
+                                           temp.begin() + 230000 * 32); */
 
   FirFilter filter(my_coeffs);
   std::vector<std::complex<float>> temp2;
+
+  /*   temp2.reserve(slice.size());
+    for (size_t i = 0; i < slice.size(); i++) {
+      std::complex<float> result = filter.process_sample(slice[i]);
+      temp2.push_back(result);
+    } */
+
   temp2.reserve(temp.size());
 
   // фильтрация
@@ -45,7 +56,7 @@ int main(void) {
   std::cout << "После прореживания: " << temp3.size() << std::endl;
 
   std::vector<float> temp_env = calculate_am_envelope(temp3);
-  saveSignal(temp_env, "test_env.csv");
+  saveSignal(temp_env, "test_env2.csv");
 
   // создаем коэффикциенты для полосового фильтра (bandpass)
   std::vector<float> coeffs_1200 =

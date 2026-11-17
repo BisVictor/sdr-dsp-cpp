@@ -1,5 +1,5 @@
 CXX = g++
-CXXFLAGS = -I. -Wall -Wextra
+CXXFLAGS = -g -I. -Wall -Wextra
 
 # Общие файлы проекта
 COMMON_SRCS = SDR_prog.cpp acars_modulator.cpp filter.cpp
@@ -10,7 +10,7 @@ MAIN_SRCS = main.cpp $(COMMON_SRCS)
 MAIN_LDFLAGS = -lpthread -lsndfile
 
 # Настройки для тестов
-TEST_TARGET = run_tests
+TEST_TARGET = SDR_prog
 TEST_SRCS = tests/acars_tests.cpp $(COMMON_SRCS)
 TEST_LDFLAGS = -lgtest -lgtest_main -lpthread -lsndfile
 

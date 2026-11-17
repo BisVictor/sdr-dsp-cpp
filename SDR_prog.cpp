@@ -6,7 +6,8 @@ FirFilter::FirFilter(const std::vector<float>& coefficients)
 
 FirFilter::~FirFilter() {}
 
-std::complex<float> FirFilter::process_sample(std::complex<float> sample) {
+std::complex<float> FirFilter::process_sample(
+    const std::complex<float> sample) {
   std::complex<float> acc = 0.0f;
   if (history_.empty()) {
     std::cout << "History is empty";
