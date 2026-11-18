@@ -30,7 +30,11 @@ std::vector<double> generateAcarsPacket(const std::vector<bool>& bits,
 
   // В ACARS перед данными всегда идет преамбула (чередование 1 и 0 для
   // синхронизации)
-  std::vector<bool> preamble = {1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0};
+  std::vector<bool> preamble = {1, 1, 0, 1, 0, 1, 0, 0,   //    [  +  ]
+                                0, 1, 0, 1, 0, 1, 0, 1,   //    [  *  ]
+                                0, 1, 1, 0, 1, 0, 0, 0,   //    [ SYN ]
+                                0, 1, 1, 0, 1, 0, 0, 0,   //    [ SYN ]
+                                1, 0, 0, 0, 0, 0, 0, 1};  //    [ SOH ]
 
   for (bool bit : preamble) {
     auto bitSignal = generateBit(bit, phase, cfg);

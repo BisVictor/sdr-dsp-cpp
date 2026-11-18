@@ -1,5 +1,7 @@
 #include "SDR_prog.h"
 
+#include "acars_modulator.h"
+
 FirFilter::FirFilter(const std::vector<float>& coefficients)
     : coeffs_(coefficients),
       history_(coefficients.size(), std::complex<float>(0.0f, 0.0f)) {}
@@ -22,101 +24,84 @@ std::complex<float> FirFilter::process_sample(
   return acc;
 }
 
-void AcarsParser::parse_bitstream(const std::vector<uint8_t>& raw_bits) {
-  for (size_t i = 0; i < raw_bits.size(); i++) {
-    sample_counter_++;
+/* class AcarsParser {
+ private:
+  size_t count_ = 0;
+  uint8_t prev_bit_ = 1;
+  std::vector<uint8_t> bits_;
 
-    // Синхронизация по фронту
-    if (raw_bits[i] != last_raw_bit_) {
-      sample_counter_ = 0;
-      last_raw_bit_ = raw_bits[i];
-    }
+ public:
+  AcarsParser() {};
+  void parse_bitstream(const std::vector<uint8_t>& raw_bits);
 
-    // Стробирование строго в центре бита
-    if (sample_counter_ == mid_sample_tick_) {
-      // Декодер NRZI
-      uint8_t nrzi_bit = (raw_bits[i] == last_stable_bit_) ? 1 : 0;
-      last_stable_bit_ = raw_bits[i];
+}; */
 
-      // Коррекция базовой инверсии
-      nrzi_bit = 1 - nrzi_bit;
-
-      // Задвигаем бит в 24-битный регистр преамбулы
-      shift_reg_ = ((shift_reg_ << 1) & 0xFFFFFF) + nrzi_bit;
-
-      // Вырезаем 16 бит для проверки преамбулы
-      uint32_t check_sync = shift_reg_ & 0xFFFF;
-
-      // Проверяем ПРЯМУЮ преамбулу
-      if (check_sync == 2694) {
-        is_capturing_ = true;
-        invert_payload_ = false;
-        bit_counter_ = 0;
-        current_byte_ = 0;
-        std::cout << "\n[ACARS Packet Detected] -> ";
-        continue;
-      }
-      // Проверяем ИНВЕРСНУЮ преамбулу (Автоподстройка под SDR)
-      else if (check_sync == 62837) {
-        is_capturing_ = true;
-        invert_payload_ = true;  // Будем переворачивать биты текста
-        bit_counter_ = 0;
-        current_byte_ = 0;
-        std::cout << "\n[ACARS Inverted Packet Detected] -> ";
-        continue;
-      }
-
-      // Сборка байта из битов
-      if (is_capturing_) {
-        // Если преамбула зашла инверсной, переворачиваем бит на лету
-        uint8_t final_bit = invert_payload_ ? (1 - nrzi_bit) : nrzi_bit;
-
-        current_byte_ |= (final_bit << bit_counter_);
-        bit_counter_++;
-
-        if (bit_counter_ == 8) {
-          uint8_t clean_ascii = current_byte_ & 0x7F;
-
-          if (clean_ascii == 3) {  // Конец пакета (ETX)
-            is_capturing_ = false;
-            std::cout << " [End of Packet]" << std::endl;
-          } else if (clean_ascii >= 32 && clean_ascii <= 126) {
-            std::cout << static_cast<char>(clean_ascii);
-            std::cout.flush();
-          }
-
-          bit_counter_ = 0;
-          current_byte_ = 0;
-        }
-      }
-    }
-
-    if (sample_counter_ >= 40) {
-      sample_counter_ = 0;
-    }
+void AcarsParser::recover_bits(uint8_t raw_bit) {
+  if (raw_bit == prev_bit_) {
+    count_++;
+    return;
   }
+  // Завершаем предыдущую серию
+  size_t bits_count =
+      std::round(static_cast<double>(count_) / samples_per_bit_);
+
+  for (size_t i = 0; i < bits_count; i++) {
+    bits_.push_back(prev_bit_);
+  }
+
+  // Начинаем новую серию
+  prev_bit_ = raw_bit;
+  count_ = 1;
+}
+
+void AcarsParser::parse_bitstream(const std::vector<uint8_t>& raw_bits) {
+  State state = State::HOLD;
+
+  for (uint64_t i = 0; i < raw_bits.size(); i++) {
+    if (state == State::HOLD && raw_bits[i] == 1) {
+      continue;
+    }
+    if (state == State::HOLD && raw_bits[i] == 0) {
+      state = State::SYNC;
+    }
+    recover_bits(raw_bits[i]);
+  }
+  // std::cout << "bits_: " << bits_;
 }
 
 std::vector<uint8_t> extract_raw_bits(
     size_t size, const std::vector<std::complex<float>>& filtered1,
-    const std::vector<std::complex<float>>& filtered2) {
+    const std::vector<std::complex<float>>& filtered2,
+    const float squelch_threshold) {
   std::vector<uint8_t> result;
+  uint8_t temp = 1;
   result.reserve(size);
-  const float squelch_threshold = 1e-7f;
+
+  std::vector<std::complex<float>> vector_1200;
+  std::vector<std::complex<float>> vector_2400;
 
   for (size_t i = 0; i < size; i++) {
-    float temp1 = std::norm(filtered1[i]);
-    float temp2 = std::norm(filtered2[i]);
-    if ((temp1 + temp2) < squelch_threshold) {
-      result.push_back(1);
-    } else {
-      if (temp1 > temp2) {
+    float e1 = std::norm(filtered1[i]);
+    float e2 = std::norm(filtered2[i]);
+
+    vector_1200.emplace_back(e1);
+    vector_2400.emplace_back(e2);
+
+    if (e1 > squelch_threshold || e2 > squelch_threshold) {
+      if (e1 > e2) {
         result.push_back(1);
+        temp = 1;
       } else {
         result.push_back(0);
+        temp = 0;
       }
+    } else {
+      result.push_back(temp);
     }
   }
+
+  saveSignal(vector_1200, "tests/signal_data/test9_after_fir1.csv");
+  saveSignal(vector_2400, "tests/signal_data/test9_after_fir2.csv");
 
   return result;
 }

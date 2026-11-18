@@ -179,9 +179,10 @@ TEST(Acars_Test, Test9_modulation_and_parse) {
   AcarsConfig cfg;
   cfg.sampleRate = 32000;
 
-  std::vector<bool> bits = {
-      0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0,
-      1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1,  // hello
+  std::vector<bool> bits =  //{1};
+      {
+          0, 1, 1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0,
+          1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1,  // hello
   };
 
   std::vector<double> modulation = generateAcarsPacket(bits, cfg);
@@ -193,11 +194,11 @@ TEST(Acars_Test, Test9_modulation_and_parse) {
   saveSignal(iq_signal, "tests/signal_data/test9_before.csv");
 
   std::vector<float> coeffs_1200 =
-      design_bandpass_fir(51, cfg.sampleRate, 1000.0f, 1400.0f);
+      design_bandpass_fir(19, cfg.sampleRate, 1000.0f, 1400.0f);
   saveSignal(coeffs_1200, "tests/signal_data/test9_coeffs_1200.csv");
 
   std::vector<float> coeffs_2400 =
-      design_bandpass_fir(51, cfg.sampleRate, 2200.0f, 2600.0f);
+      design_bandpass_fir(23, cfg.sampleRate, 2200.0f, 2600.0f);
   saveSignal(coeffs_2400, "tests/signal_data/test9_coeffs_2400.csv");
 
   // фильтрация 1
@@ -216,19 +217,21 @@ TEST(Acars_Test, Test9_modulation_and_parse) {
   FirFilter filter2(coeffs_2400);
 
   for (auto sample : iq_signal) {
-    std::complex<float> temp = filter.process_sample(sample);
+    std::complex<float> temp = filter2.process_sample(sample);
     vector_2400.push_back(temp);
   }
 
   // сохраняем сигнал после фильтрации
-  saveSignal(vector_1200, "tests/signal_data/test9_after_fir1.csv");
-  saveSignal(vector_2400, "tests/signal_data/test9_after_fir2.csv");
+  // saveSignal(vector_1200, "tests/signal_data/test9_after_fir1.csv");
+  // saveSignal(vector_2400, "tests/signal_data/test9_after_fir2.csv");
 
   std::vector<uint8_t> raw_bits;
   raw_bits.reserve(iq_signal.size());
-  raw_bits = extract_raw_bits(iq_signal.size(), vector_1200, vector_2400);
+  raw_bits =
+      extract_raw_bits(iq_signal.size(), vector_1200, vector_2400, 0.015);
 
-  for (auto temp : raw_bits) {
-    std::cout << (temp ? 1 : 0) << " ";
-  }
+  for (auto temp : raw_bits) std::cout << (temp ? 1 : 0) << " ";
+
+  AcarsParser parser;
+  parser.parse_bitstream(raw_bits);
 }
