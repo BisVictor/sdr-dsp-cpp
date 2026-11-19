@@ -40,8 +40,9 @@ class AcarsParser {
   AcarsParser(const AcarsConfig& cfg)
       : cfg_(cfg),
         samples_per_bit_(static_cast<double>(cfg.sampleRate) / 2400.0) {}
+  void append_inverted_bit(std::vector<uint8_t>& raw_bits);
   void recover_bits(uint8_t raw_bit);
-  void parse_bitstream(const std::vector<uint8_t>& raw_bits);
+  std::vector<uint8_t> parse_bitstream(std::vector<uint8_t>& raw_bits);
 };
 
 // ==================== Утилиты ЦОС (Свободные функции) ====================

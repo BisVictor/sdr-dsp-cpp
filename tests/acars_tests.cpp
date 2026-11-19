@@ -175,7 +175,7 @@ TEST(Acars_Test, Test8_bandpass_fir) {
   ASSERT_EQ(iq_signal.size(), vector_after_filtration.size());
 }
 
-TEST(Acars_Test, Test9_modulation_and_parse) {
+TEST(Acars_Test, Test9_modulation_and_extract_raw_bits) {
   AcarsConfig cfg;
   cfg.sampleRate = 32000;
 
@@ -189,16 +189,17 @@ TEST(Acars_Test, Test9_modulation_and_parse) {
   std::vector<std::complex<float>> iq_signal;
   iq_signal.reserve(modulation.size());
   for (double sample : modulation) {
-    iq_signal.emplace_back(static_cast<float>(sample), 0.0f);
+    iq_signal.emplace_back(static_cast<float>(sample),
+                           static_cast<float>(sample));
   }
   saveSignal(iq_signal, "tests/signal_data/test9_before.csv");
 
   std::vector<float> coeffs_1200 =
-      design_bandpass_fir(19, cfg.sampleRate, 1000.0f, 1400.0f);
+      design_bandpass_fir(31, cfg.sampleRate, 1000.0f, 1400.0f);
   saveSignal(coeffs_1200, "tests/signal_data/test9_coeffs_1200.csv");
 
   std::vector<float> coeffs_2400 =
-      design_bandpass_fir(23, cfg.sampleRate, 2200.0f, 2600.0f);
+      design_bandpass_fir(31, cfg.sampleRate, 2200.0f, 2600.0f);
   saveSignal(coeffs_2400, "tests/signal_data/test9_coeffs_2400.csv");
 
   // фильтрация 1
@@ -228,10 +229,30 @@ TEST(Acars_Test, Test9_modulation_and_parse) {
   std::vector<uint8_t> raw_bits;
   raw_bits.reserve(iq_signal.size());
   raw_bits =
-      extract_raw_bits(iq_signal.size(), vector_1200, vector_2400, 0.015);
+      extract_raw_bits(iq_signal.size(), vector_1200, vector_2400, 0.0245);
 
-  for (auto temp : raw_bits) std::cout << (temp ? 1 : 0) << " ";
+  // for (auto temp : raw_bits) std::cout << (temp ? 1 : 0) << " ";
 
-  AcarsParser parser;
-  parser.parse_bitstream(raw_bits);
+  AcarsParser parser(cfg);
+  std::vector<uint8_t> demodulate_bits = parser.parse_bitstream(raw_bits);
+
+  std::vector<bool> bits2 = {
+      0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
+      0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+      1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1,
+      0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1,  // hello
+  };
+
+  // std::cout << std::endl << "вывод2: " << std::endl;
+  // for (auto bit : bits2) std::cout << (bit ? 1 : 0) << " ";
+
+  std::vector<uint8_t> reference_bits = {
+      0, 1, 0, 1, 0, 0, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0,
+      0, 0, 0, 1, 1, 0, 1, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 1, 0, 1,
+      1, 0, 1, 0, 0, 0, 0, 1, 1, 0, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1,
+      0, 0, 0, 1, 1, 0, 1, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 1};
+
+  for (size_t i = 0; i < 70; i++) {
+    ASSERT_EQ(reference_bits[i], demodulate_bits[i]);
+  }
 }

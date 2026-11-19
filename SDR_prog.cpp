@@ -48,25 +48,42 @@ void AcarsParser::recover_bits(uint8_t raw_bit) {
   for (size_t i = 0; i < bits_count; i++) {
     bits_.push_back(prev_bit_);
   }
-
   // Начинаем новую серию
   prev_bit_ = raw_bit;
   count_ = 1;
 }
 
-void AcarsParser::parse_bitstream(const std::vector<uint8_t>& raw_bits) {
-  State state = State::HOLD;
-
-  for (uint64_t i = 0; i < raw_bits.size(); i++) {
-    if (state == State::HOLD && raw_bits[i] == 1) {
-      continue;
-    }
-    if (state == State::HOLD && raw_bits[i] == 0) {
-      state = State::SYNC;
-    }
-    recover_bits(raw_bits[i]);
+void AcarsParser::append_inverted_bit(std::vector<uint8_t>& raw_bits) {
+  if (raw_bits.back() == 1) {
+    raw_bits.push_back(0);
+  } else {
+    raw_bits.push_back(1);
   }
-  // std::cout << "bits_: " << bits_;
+}
+
+std::vector<uint8_t> AcarsParser::parse_bitstream(
+    std::vector<uint8_t>& raw_bits) {
+  if (raw_bits.empty())
+    std::cout << "Vector is empty";
+
+  else {
+    State state = State::HOLD;
+    append_inverted_bit(raw_bits);
+
+    for (uint64_t i = 0; i < raw_bits.size(); i++) {
+      if (state == State::HOLD && raw_bits[i] == 1) {
+        continue;
+      }
+      if (state == State::HOLD && raw_bits[i] == 0) {
+        state = State::SYNC;
+      }
+      recover_bits(raw_bits[i]);
+    }
+    /* std::cout << std::endl << "вывод: " << std::endl;
+    for (auto bit : bits_) std::cout << (bit ? 1 : 0) << " "; */
+  }
+
+  return bits_;
 }
 
 std::vector<uint8_t> extract_raw_bits(
