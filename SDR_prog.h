@@ -25,7 +25,17 @@ class FirFilter {
   std::complex<float> process_sample(const std::complex<float> sample);
 };
 
-enum class State : uint8_t { HOLD = 0, SYNC = 1, PAYLOAD = 2, END = 3 };
+enum class State : uint8_t {
+  HOLD = 0,
+  PRMB_1 = 1,
+  PRMB_2 = 2,
+  SYN_1 = 3,
+  SYN_2 = 4,
+  SOH = 5,
+  PAYLOAD = 6,
+  END = 7,
+  ERROR = 8
+};
 
 // ==================== Парсер ACARS (FSM) ====================
 class AcarsParser {
@@ -42,6 +52,8 @@ class AcarsParser {
         samples_per_bit_(static_cast<double>(cfg.sampleRate) / 2400.0) {}
   void append_inverted_bit(std::vector<uint8_t>& raw_bits);
   void recover_bits(uint8_t raw_bit);
+  bool check_preamble(size_t start_idx, size_t bit_count, uint32_t reference,
+                      int part);
   std::vector<uint8_t> parse_bitstream(std::vector<uint8_t>& raw_bits);
 };
 

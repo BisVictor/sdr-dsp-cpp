@@ -61,27 +61,62 @@ void AcarsParser::append_inverted_bit(std::vector<uint8_t>& raw_bits) {
   }
 }
 
+bool AcarsParser::check_preamble(size_t start_idx, size_t bit_count,
+                                 uint32_t reference, int part) {
+  uint32_t value = 0;
+  for (size_t i = start_idx; i < start_idx + bit_count; i++) {
+    value = (value << 1) | (bits_[i] & 1);
+  }
+  if (value == reference) {
+    std::cout << "Check " << part << " part of preamble!!!\n";
+    return true;
+  } else {
+    std::cout << "Don't see preamble part " << part << "! value = " << value
+              << "\n";
+    return false;
+  }
+}
+
 std::vector<uint8_t> AcarsParser::parse_bitstream(
     std::vector<uint8_t>& raw_bits) {
-  if (raw_bits.empty())
-    std::cout << "Vector is empty";
-
-  else {
-    State state = State::HOLD;
-    append_inverted_bit(raw_bits);
-
-    for (uint64_t i = 0; i < raw_bits.size(); i++) {
-      if (state == State::HOLD && raw_bits[i] == 1) {
-        continue;
-      }
-      if (state == State::HOLD && raw_bits[i] == 0) {
-        state = State::SYNC;
-      }
-      recover_bits(raw_bits[i]);
-    }
-    /* std::cout << std::endl << "вывод: " << std::endl;
-    for (auto bit : bits_) std::cout << (bit ? 1 : 0) << " "; */
+  if (raw_bits.empty()) {
+    std::cout << "Vector is empty\n";
+    return bits_;
   }
+
+  bits_.clear();
+  count_ = 0;
+  State state = State::HOLD;
+  append_inverted_bit(raw_bits);
+
+  for (uint64_t i = 0; i < raw_bits.size(); i++) {
+    if (state == State::HOLD) {
+      if (raw_bits[i] == 1) continue;
+      state = State::PRMB_1;
+      prev_bit_ = raw_bits[i];
+      count_ = 0;
+    }
+
+    recover_bits(raw_bits[i]);
+
+    if (state == State::PRMB_1 && bits_.size() >= 6) {
+      state = check_preamble(0, 6, 20, 1) ? State::PRMB_2 : State::ERROR;
+    } else if (state == State::PRMB_2 && bits_.size() >= 14) {
+      state = check_preamble(6, 8, 85, 2) ? State::SYN_1 : State::ERROR;
+    } else if (state == State::SYN_1 && bits_.size() >= 22) {
+      state = check_preamble(14, 8, 104, 3) ? State::SYN_2 : State::ERROR;
+    } else if (state == State::SYN_2 && bits_.size() >= 30) {
+      state = check_preamble(22, 8, 104, 4) ? State::SOH : State::ERROR;
+    } else if (state == State::SOH && bits_.size() >= 38) {
+      state = check_preamble(30, 8, 129, 5) ? State::PAYLOAD : State::ERROR;
+    }
+
+    if (state == State::ERROR) {
+      break;
+    }
+  }
+  /* std::cout << std::endl << "вывод: " << std::endl;
+  for (auto bit : bits_) std::cout << (bit ? 1 : 0) << " "; */
 
   return bits_;
 }
