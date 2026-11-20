@@ -44,7 +44,9 @@ class AcarsParser {
   size_t count_ = 0;
   uint8_t prev_bit_ = 1;
   std::vector<uint8_t> bits_;
+  std::vector<uint8_t> bits2_;
   double samples_per_bit_;
+  std::string text_ = "";
 
  public:
   AcarsParser(const AcarsConfig& cfg)
